@@ -2,3 +2,4 @@
 venv/
 build/
 wormhole/hooking/modules/custom/*
+wormhole_core.egg-info/
