@@ -35,6 +35,17 @@ STREAM_NOT_OPENED = '0x0'
 
 
 class Io(BaseModule):
+    """
+    This module is used to collect, process and aggregate the results of IO functions hooking.
+    Hooked functions:
+        - open
+        - read
+        - write
+        - close
+        - fopen
+        - fclose
+        - fwrite
+    """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)

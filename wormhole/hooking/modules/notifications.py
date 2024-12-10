@@ -11,6 +11,13 @@ class Observer:
 
 
 class Notifications(BaseModule):
+    """
+    This module is used to collect, process and aggregate the results of notifications functions hooking.
+    Hooked functions:
+        +[NSNotificationCenter postNotificationName:object:userInfo:]
+        -[NSNotificationCenter addObserver:selector:name:object:]
+        - CFNotificationCenterPostNotification
+    """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)

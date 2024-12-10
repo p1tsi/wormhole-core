@@ -9,11 +9,13 @@ from paramiko import SSHClient
 from scp import SCPClient
 from typing import List, Union, Tuple
 from flask_socketio import Namespace
+from enum import Enum
 
 from .hooking.connector_manager import ConnectorManager
 from .hooking.modules_manager import ModulesManager
 
 AGENT_PROJECT_DIR = os.path.join(os.getcwd(), 'wormhole-agent')
+AGENT_DIR = os.path.join(os.getcwd(), 'agents')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -21,6 +23,11 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+
+class TargetOs(Enum):
+    IOS = "ios"
+    MACOS = "macos"
 
 
 class Core(object):
@@ -34,6 +41,8 @@ class Core(object):
         """
         self._ws = ws
         self._device: frida.core.Device = device
+        self._os: TargetOs = TargetOs.MACOS if device.query_system_parameters().get('os').get(
+            'id') == 'macos' else TargetOs.IOS
 
         # Setup callbacks on device
         if self._device:
@@ -120,36 +129,33 @@ class Core(object):
         logger.info(f"Getting custom hooking modules: {custom_modules}")
         return custom_modules
 
-    def _dynamic_compile(self, force: bool = False) -> str:
+    def _dynamic_compile(self, final_agent_script_path: str, custom_modules: List) -> str:
         """
-        As it is possible to add custom modules to hook app-specific class' methods and functions,
-            it is necessary to compile the agent dynamically in order to use custom modules.
-        :param force: Force recompile
-        :return: path for compiled agent or default agent
+        Modify the file 'hooking.template.ts' adding rows of code that let hook custom functions
+        :param final_agent_script_path: the path for the new agent to be compiled
+        :param custom_modules: list of modules specific for current analyzed application
+        :return: path for the compiled custom agent
         """
-
-        # TODO: It seems that exists some frida compilation method. Check it out.
-
-        custom_modules = self._modules_manager.get_available_custom_modules()
-        if not custom_modules:
-            logger.info("No custom modules. Using base agent")
-            # Default agent script (precompiled)
-            return os.path.join('agents', '_base_agent.js')
-
-        logger.info(f"Custom modules: {custom_modules}. Compiling custom agent...")
-        final_agent_script_path = os.path.join(os.getcwd(), "agents", f"_{self._target_name}_agent.js")
-        if os.path.exists(final_agent_script_path) and not force:
-            return final_agent_script_path
-
-        # Dinamically modify 'hooking.template.ts' file to include stuff related to custom modules
-        hooking_template_file_path = os.path.join(AGENT_PROJECT_DIR, 'src', 'ios', 'hooking', 'hooking.template.ts')
-        final_hooking_file_path = os.path.join(AGENT_PROJECT_DIR, 'src', 'ios', 'hooking', 'hooking.ts')
+        hooking_template_file_path = os.path.join(
+            AGENT_PROJECT_DIR,
+            'src',
+            self._os.value,
+            'hooking',
+            'hooking.template.ts'
+        )
+        final_hooking_file_path = os.path.join(
+            AGENT_PROJECT_DIR,
+            'src',
+            self._os.value,
+            'hooking',
+            'hooking.ts'
+        )
         app_name = self._target_name.replace(".", "/")
         with open(hooking_template_file_path, "r") as read_hooking_file:
-            hooking_file = read_hooking_file.readlines()
+            hooking_file_content = read_hooking_file.readlines()
 
         out_hooking_file = []
-        for line in hooking_file:
+        for line in hooking_file_content:
             out_hooking_file.append(line)
             if '//#IMPORT#//' in line:
                 for module in custom_modules:
@@ -183,6 +189,35 @@ class Core(object):
             exit(1)
         logger.info("Compilation done")
         os.remove(final_hooking_file_path)
+
+        return final_agent_script_path
+
+    def _get_agent_path(self, force: bool = False) -> str:
+        """
+        As it is possible to add custom modules to hook app-specific classes' methods and functions,
+            it is necessary to compile the agent dynamically in order to use custom modules.
+        :param force: Force recompile
+        :return: path for compiled agent or default agent
+        """
+
+        # TODO: It seems that exists some frida compilation method. Check it out.
+
+        custom_modules = self._modules_manager.get_available_custom_modules()
+        if not custom_modules:
+            agent_name = f'_{self._os.value}_base_agent.js'
+            logger.info(f"No custom modules. Using base agent {agent_name}")
+            # Default agent script (precompiled)
+            return os.path.join(AGENT_DIR, agent_name)
+
+        final_agent_script_path = os.path.join(AGENT_DIR, f"_{self._os.value}_{self._target_name}_agent.js")
+        if os.path.exists(final_agent_script_path) and not force:
+            logger.info(f"Using already compiled custom agent: {final_agent_script_path}...")
+            return final_agent_script_path
+
+        logger.info(f"Custom modules: {custom_modules}. Compiling custom agent...")
+        # Dynamically modify 'hooking.template.ts' file to include stuff related to custom modules
+        self._dynamic_compile(final_agent_script_path, custom_modules)
+
         return final_agent_script_path
 
     def _on_message(self, message: dict, data: bytes) -> None:
@@ -200,7 +235,7 @@ class Core(object):
         """
 
         # Prepare agent script to inject
-        script_path = self._dynamic_compile()
+        script_path = self._get_agent_path()
         with open(script_path, "r") as js_file:
             js_source = js_file.read()
 
@@ -233,6 +268,7 @@ class Core(object):
         # self._script.on('crashed', )
         # self._script.on('unload', )
         self._script.load()
+
         return True
 
     def operations(self, modules: List[str], custom_modules: List[str], connectors: List[str]) -> bool:
@@ -337,15 +373,17 @@ class Core(object):
             if not items:
                 return None, "No files to download"
 
-            os.makedirs(os.path.join(self._data_dir, "Payload"))
+            payload_dir = os.path.join(self._data_dir, "Payload")
+            if not os.path.exists(payload_dir):
+                os.makedirs(payload_dir)
+
             with SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(
                     "127.0.0.1",
                     port=2222,
                     username="root",
-                    password="alpine",
-                    key_filename=None
+                    password="alpine"
                 )
 
                 with SCPClient(ssh.get_transport(), socket_timeout=60) as scp:

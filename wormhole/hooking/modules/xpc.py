@@ -40,6 +40,15 @@ class XpcMessage:
 
 
 class Xpc(BaseModule):
+    """
+    This module is used to collect, process and aggregate the results of XPC functions hooking.
+    Hooked functions:
+        - xpc_connection_send_message
+        - xpc_connection_send_message_with_reply
+        - xpc_connection_send_message_with_reply_sync
+        - xpc_connection_send_notification
+        - _xpc_connection_call_event_handler
+    """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)

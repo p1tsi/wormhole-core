@@ -120,6 +120,20 @@ class Request:
 
 
 class Network(BaseModule):
+    """
+    This module is used to collect, process and aggregate the results of network (HTTP) functions hooking.
+    Hooked functions:
+        -[NSURLSession dataTaskWithRequest:]
+        -[NSURLSession dataTaskWithRequest:completionHandler:]
+        -[NSURLSession uploadTaskWithRequest:fromData:]
+        -[NSURLSession uploadTaskWithRequest:fromData:completionHandler:]
+        -[NSURLSession uploadTaskWithRequest:fromFile:]
+        -[NSURLSession uploadTaskWithRequest:fromFile:completionHandler:]
+        -[NSURLSession downloadTaskWithRequest:]
+        -[NSURLSession downloadTaskWithRequest:completionHandler:]
+        -[NSURLSession uploadTaskWithStreamedRequest:]
+        -[NSURLResponse _initWithCFURLResponse:]
+    """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)

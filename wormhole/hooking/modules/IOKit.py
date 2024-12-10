@@ -10,6 +10,14 @@ class KextConnection:
 
 
 class Iokit(BaseModule):
+    """
+    This module is used to collect, process and aggregate the results of IOKit functions hooking.
+    Hooked functions:
+        - IOServiceMatching
+        - IOServiceNameMatching
+        - IOServiceOpen
+        - IOConnectCallMethod
+    """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)

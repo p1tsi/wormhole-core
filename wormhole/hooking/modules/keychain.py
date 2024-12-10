@@ -5,6 +5,14 @@ from .base import BaseModule
 
 
 class Keychain(BaseModule):
+    """
+    This module is used to collect, process and aggregate the results of Keychain functions hooking.
+    Hooked functions:
+        - SecItemCopyMatching
+        - SecItemAdd
+        - SecItemDelete
+        - SecItemUpdate
+    """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)

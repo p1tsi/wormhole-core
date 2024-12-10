@@ -93,6 +93,15 @@ class EncryptSession:
 
 
 class Encryption(BaseModule):
+    """
+    This module is used to collect, process and aggregate the results of cryptography functions hooking.
+    Hooked functions:
+        - CCCryptorCreateWithMode
+        - CCCryptorUpdate
+        - CCCryptorGetOutputLength
+        - CCCryptorFinal
+        - CCCryptorRelease
+    """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)
