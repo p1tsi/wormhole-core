@@ -161,7 +161,6 @@ class Network(BaseModule):
         return count
 
     def _process(self):
-        print(f"SYMBOL: {self.message.symbol} ({self.message.tid})")
         request = self.requests.get(self.message.args[0], None)
         if "callback" in self.message.symbol:
             if request:

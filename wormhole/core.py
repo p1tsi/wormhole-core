@@ -11,6 +11,8 @@ from typing import List, Union, Tuple
 from flask_socketio import Namespace
 from enum import Enum
 
+from . import utils
+
 from .hooking.connector_manager import ConnectorManager
 from .hooking.modules_manager import ModulesManager
 
@@ -113,6 +115,13 @@ class Core(object):
 
     def _on_session_detached(self) -> None:
         logger.info("Session detached")
+        zip_file = os.path.join(os.getcwd(), 'appData', f'{self._target_name}_{self._target_pid}.zip')
+        logger.info(f"Zipping data inside {zip_file}")
+        utils.zip_folder(
+            self._data_dir,
+            zip_file
+        )
+
         if self._ws:
             self._ws.emit('destroyed')
 
