@@ -34,7 +34,7 @@ class ModulesManager:
         try:
             return importlib.import_module(f".custom.{self._app_name}", package=BASE_MODULE).__all__
         except Exception as e:
-            logger.error(f"Error getting custom modules found for {self._app_name}: {e}")
+            logger.error(f"Error getting custom modules for {self._app_name}: {e}")
             return []
 
     def get_available_custom_modules(self) -> List[str]:

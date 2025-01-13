@@ -189,10 +189,11 @@ class Core(object):
 
         # ...and then compile the agent
         logger.info("Compiling custom agent")
-        p = subprocess.Popen(["npm", "run", "build", final_agent_script_path], cwd=AGENT_PROJECT_DIR)
+        build_script = "build-ios" if self._os == TargetOs.IOS else "build-macos"
+        p = subprocess.Popen(["npm", "run", build_script, final_agent_script_path], cwd=AGENT_PROJECT_DIR)
         p.communicate()
         try:
-            p.wait(timeout=15)
+            p.wait(timeout=20)
         except subprocess.TimeoutExpired:
             logger.error("COMPILATION TIMEOUT EXPIRED")
             exit(1)

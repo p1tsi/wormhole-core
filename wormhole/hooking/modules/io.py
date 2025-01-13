@@ -49,8 +49,10 @@ class Io(BaseModule):
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)
-        os.mkdir(os.path.join(self._module_dir, "read"))
-        os.mkdir(os.path.join(self._module_dir, "write"))
+        read_dir = os.path.join(self._module_dir, "read")
+        write_dir = os.path.join(self._module_dir, "write")
+        os.mkdir(read_dir) if not os.path.exists(read_dir) else None
+        os.mkdir(write_dir) if not os.path.exists(write_dir) else None
 
         # Keep track of opened files. Key: file descriptor, value: file path
         self._files = dict()
