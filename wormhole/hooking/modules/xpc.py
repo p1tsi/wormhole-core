@@ -1,24 +1,58 @@
 import json
+import base64
 
 from .base import BaseModule
+from wormhole.utils.bplist17parser import BinaryPlist17Parser
+
+
+def try_parse_root_field(message: str) -> str:
+    try:
+        msg_dict = json.loads(message)
+        if msg_dict.get('root'):
+            # print(type(message), message)
+            root_data = base64.b64decode(msg_dict.get('root'))
+
+            if root_data[:8].decode().startswith("bplist17"):
+                p = BinaryPlist17Parser(dict_type=dict)
+                result = p.parse(root_data)
+                # print("HERE1", result)
+                result_str = json.dumps(result)
+                msg_dict['root'] = result_str
+                # print("OK", type(msg_dict), msg_dict)
+
+                message = json.dumps(msg_dict)
+                # print(message)
+                # print("-" * 50)
+
+                return message
+
+    except Exception as e:
+        print(f"XPC EXCEPTION: {e}")
+        print(message)
+        print("-" * 50)
+
+    return message
 
 
 class XpcMessage:
 
     def __init__(self, message="", service="", is_input_message=False):
-        self.message: str = message
+        self.message: str = try_parse_root_field(message)
         self.xpc_service: str = service
         self.is_input_message: bool = is_input_message
         self.response: dict = dict()
 
+    def set_response(self, response=""):
+        self.response = try_parse_root_field(response)
+
     def __repr__(self):
         msg = f"{self.message} " \
               f"{'<--' if self.is_input_message else '-->'} " \
-              f"{self.xpc_service}" \
+              f"{self.xpc_service}"
 
         if self.response:
-            msg += "\n\nRESPONSE\n\n" \
-                   f"{self.response if self.response else ''}"
+            msg += "\n\nRESPONSE\n\n"
+            msg += f"{self.response}"
 
         return msg
 
@@ -55,29 +89,16 @@ class Xpc(BaseModule):
 
     def _process(self):
         if "-callback" in self.message.symbol:
-            self.publish(json.loads(self.message.args[0]))
+            self.publish(
+                try_parse_root_field(
+                    self.message.args[0]
+                )
+            )
         else:
-            """if 'com.apple.xpc.anonymous' in connection_string:
-                try:
-                    connection = json.loads(self.message.args[0])
-                    connection['name'] = list(
-                        filter(
-                            lambda p: p.pid == connection.get('pid'),
-                            list(
-                                filter(
-                                    lambda d: d.type == 'usb',
-                                    frida.enumerate_devices()
-                                )
-                            )[0].enumerate_processes()
-                        )
-                    )[0].name
-                    print(connection['name'])
-                    connection_string = json.dumps(connection)
-                except Exception:
-                    pass  # print("Pid not found")"""
 
             if "com.apple.cfprefsd.daemon" in self.message.args[0] or "com.apple.runningboard" in self.message.args[0] \
-                    or "com.apple.UIKit.KeyboardManagement.hosted" in self.message.args[0] or "com.apple.windowmanager.server" in self.message.args[0]:
+                    or "com.apple.UIKit.KeyboardManagement.hosted" in self.message.args[0] or \
+                    "com.apple.windowmanager.server" in self.message.args[0]:
                 return
 
             try:
@@ -91,6 +112,6 @@ class Xpc(BaseModule):
                 return
 
             if "_sync" in self.message.symbol:
-                xpc_message.response = self.message.ret
+                xpc_message.set_response(self.message.ret)
 
             self.publish(xpc_message, color='OKCYAN' if xpc_message.is_input_message else 'WARNING')
