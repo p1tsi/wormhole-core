@@ -13,7 +13,7 @@ class Response:
     def __init__(self, *args):
         self.url = args[0] or "N/A"
         self.status_code = args[1] or "N/A"
-        self.headers = args[2] or "N/A"
+        self.headers = json.loads(args[2]) if args[2] else {}
         self.body = "N/A"
 
     def set_body(self, data, module_dir):
@@ -26,8 +26,7 @@ class Response:
     def _parse_headers(self):
         if self.headers:
             headers_str = "\n-- HEADERS --\n"
-            headers = json.loads(self.headers)
-            for header, value in headers.items():
+            for header, value in self.headers.items():
                 headers_str += f"{header}: {value}\n"
             return headers_str
         else:
@@ -49,7 +48,7 @@ class Request:
     def __init__(self, *args):  # url=None, method=None, headers=None, body=None, cookies=None):
         self.url: str = args[0] or "N/A"
         self.method: str = args[1] or "N/A"
-        self.headers: str = args[2] or None
+        self.headers: dict = json.loads(args[2]) if args[2] else {}
         if len(args) > 3:
             self.cookies: str = args[3]
         else:
@@ -69,17 +68,17 @@ class Request:
 
     def update_headers(self, new_headers):
         if new_headers:
-            self.headers = new_headers
+            for key, value in json.loads(new_headers).items():
+                self.headers[key] = value
+
+    def set_header(self, key, value):
+        self.headers[key] = value
 
     def _headers_as_str(self):
         if self.headers:
             headers_str = "\n-- HEADERS --\n"
-            try:
-                headers = json.loads(self.headers)
-                for header, value in headers.items():
-                    headers_str += f"{header}: {value}\n"
-            except:
-                pass
+            for header, value in self.headers.items():
+                headers_str += f"{header}: {value}\n"
 
             return headers_str
         else:
@@ -161,6 +160,7 @@ class Network(BaseModule):
         return count
 
     def _process(self):
+        print(self.message.symbol, self.message.args)
         request = self.requests.get(self.message.args[0], None)
         if "callback" in self.message.symbol:
             if request:
@@ -171,21 +171,25 @@ class Network(BaseModule):
         elif "Response" in self.message.symbol:
             if request:
                 request.response = Response(*self.message.args)
-                #self.publish(request)
-                #del self.requests[self.message.args[0]]
-                #self.count = self.count + 1
+                self.publish(request)
+                # del self.requests[self.message.args[0]]
+                # self.count = self.count + 1
         elif 'uploadTaskWithStreamedRequest' in self.message.symbol:
             request = self.init_request()
             if request:
                 self.requests[self.message.args[0]] = request
+        elif 'forHTTPHeaderField' in self.message.symbol:
+            if request:
+                request.set_header(self.message.args[1], self.message.args[2])
+                self.publish(request)
         else:
             if not request:
                 self.requests[self.message.args[0]] = self.init_request()
-                self.publish(self.requests[self.message.args[0]])
+                #self.publish(self.requests[self.message.args[0]])
             else:
                 if self.message.symbol == "CFURLRequestSetHTTPRequestBody":
                     request.set_body(self.message.data, self._module_dir)
                 else:
                     request.update_headers(self.message.args[2])
 
-            #self.publish(request)
+            # self.publish(request)

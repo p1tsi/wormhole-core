@@ -1,4 +1,6 @@
+import os
 import json
+import time
 import base64
 
 from .base import BaseModule
@@ -15,7 +17,6 @@ def try_parse_root_field(message: str) -> str:
             if root_data[:8].decode().startswith("bplist17"):
                 p = BinaryPlist17Parser(dict_type=dict)
                 result = p.parse(root_data)
-                # print("HERE1", result)
                 result_str = json.dumps(result)
                 msg_dict['root'] = result_str
                 # print("OK", type(msg_dict), msg_dict)
@@ -23,8 +24,6 @@ def try_parse_root_field(message: str) -> str:
                 message = json.dumps(msg_dict)
                 # print(message)
                 # print("-" * 50)
-
-                return message
 
     except Exception as e:
         print(f"XPC EXCEPTION: {e}")
@@ -97,8 +96,7 @@ class Xpc(BaseModule):
         else:
 
             if "com.apple.cfprefsd.daemon" in self.message.args[0] or "com.apple.runningboard" in self.message.args[0] \
-                    or "com.apple.UIKit.KeyboardManagement.hosted" in self.message.args[0] or \
-                    "com.apple.windowmanager.server" in self.message.args[0]:
+                    or "com.apple.UIKit.KeyboardManagement.hosted" in self.message.args[0]:
                 return
 
             try:
@@ -112,6 +110,12 @@ class Xpc(BaseModule):
                 return
 
             if "_sync" in self.message.symbol:
-                xpc_message.set_response(self.message.ret)
+                if len(self.message.ret) > 100000:
+                    filename = f"Response_{time.time()}"
+                    with open(os.path.join(self._module_dir, filename), "w") as outfile:
+                        outfile.write(self.message.ret)
+                    xpc_message.set_response(filename)
+                else:
+                    xpc_message.set_response(self.message.ret)
 
             self.publish(xpc_message, color='OKCYAN' if xpc_message.is_input_message else 'WARNING')

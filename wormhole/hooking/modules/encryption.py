@@ -78,7 +78,7 @@ class EncryptSession:
             final += f"IV: {self.iv}"
             final += "\n"
         if self.decrypt_op:
-            final += f"CIPHERTEXT ({len(self.cipehertext)}): {self.cipehertext[:16]}[...]"
+            final += f"CIPHERTEXT ({len(self.cipehertext)}): {self.cipehertext}"
             final += "\n"
             final += f"PLAINTEXT ({len(self.plaintext)}): {self.plaintext}"
         else:
