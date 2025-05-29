@@ -1,3 +1,5 @@
+# Thanks to https://github.com/seemoo-lab/plist17lib
+
 import struct
 from io import BytesIO
 
