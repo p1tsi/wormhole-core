@@ -162,7 +162,7 @@ class BinaryPlist17Parser:
 
         if with_type_info:
             result = self._dict_type()
-            result['type'] = result_type
+            #result['type'] = result_type
             result['value'] = result_value
             return result
         else:

@@ -3,32 +3,34 @@ import json
 import time
 import base64
 
+import binascii
+
 from .base import BaseModule
 from wormhole.utils.bplist17parser import BinaryPlist17Parser
 
 
 def try_parse_root_field(message: str) -> str:
-    try:
-        msg_dict = json.loads(message)
-        if msg_dict.get('root'):
-            # print(type(message), message)
-            root_data = base64.b64decode(msg_dict.get('root'))
+    msg_dict = json.loads(message)
+    if msg_dict.get('root', None):
 
-            if root_data[:8].decode().startswith("bplist17"):
-                p = BinaryPlist17Parser(dict_type=dict)
+        try:
+            root_data = base64.b64decode(msg_dict.get('root'))
+        except binascii.Error:
+            return message
+
+        if root_data[:8].decode() == "bplist17":
+            p = BinaryPlist17Parser(dict_type=dict)
+            
+            try:
                 result = p.parse(root_data)
+            except:
+                result = p.parse(root_data, with_type_info=True)
+            
+            if result:
                 result_str = json.dumps(result)
                 msg_dict['root'] = result_str
-                # print("OK", type(msg_dict), msg_dict)
 
                 message = json.dumps(msg_dict)
-                # print(message)
-                # print("-" * 50)
-
-    except Exception as e:
-        print(f"XPC EXCEPTION: {e}")
-        print(message)
-        print("-" * 50)
 
     return message
 
@@ -79,20 +81,24 @@ class Xpc(BaseModule):
         - xpc_connection_send_message
         - xpc_connection_send_message_with_reply
         - xpc_connection_send_message_with_reply_sync
-        - xpc_connection_send_notification
         - _xpc_connection_call_event_handler
     """
 
     def __init__(self, data_dir, connector_manager):
         super().__init__(data_dir, connector_manager)
+        self._async_messages = {}
 
     def _process(self):
         if "-callback" in self.message.symbol:
-            self.publish(
-                try_parse_root_field(
-                    self.message.args[0]
-                )
-            )
+            xpc_message = self._async_messages.get(self.message.tid, None)
+            
+            if not xpc_message:
+                self.publish(try_parse_root_field(self.message.args[0]))
+                return
+
+            xpc_message.set_response(try_parse_root_field(self.message.args[0]))
+            self.publish(xpc_message, color='WARNING')
+            del self._async_messages[self.message.tid]
         else:
 
             if "com.apple.cfprefsd.daemon" in self.message.args[0] or "com.apple.runningboard" in self.message.args[0] \
@@ -109,13 +115,21 @@ class Xpc(BaseModule):
                 print("Error creating XpcMessage object")
                 return
 
-            if "_sync" in self.message.symbol:
-                if len(self.message.ret) > 100000:
+            if self.message.symbol == "xpc_connection_send_message":
+                self.publish(xpc_message, color='WARNING')
+            elif self.message.symbol == "xpc_connection_call_event_handler":
+                self.publish(xpc_message, color='OKCYAN')
+            elif "_sync" in self.message.symbol:
+                """if len(self.message.ret) > 100000:
                     filename = f"Response_{time.time()}"
                     with open(os.path.join(self._module_dir, filename), "w") as outfile:
-                        outfile.write(self.message.ret)
+                        outfile.write(try_parse_root_field(self.message.ret))
                     xpc_message.set_response(filename)
-                else:
-                    xpc_message.set_response(self.message.ret)
+                else:"""
+                xpc_message.set_response(self.message.ret)
 
-            self.publish(xpc_message, color='OKCYAN' if xpc_message.is_input_message else 'WARNING')
+                self.publish(xpc_message, color='WARNING')
+                
+            else:
+                self._async_messages[self.message.tid] = xpc_message
+                
