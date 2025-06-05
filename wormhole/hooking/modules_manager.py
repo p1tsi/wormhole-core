@@ -8,7 +8,7 @@ from .connector_manager import ConnectorManager
 BASE_MODULE = "wormhole.hooking.modules"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
@@ -25,6 +25,17 @@ class ModulesManager:
         self._data_dir: str = data_dir
         self._available_custom_modules: List[str] = self._discover_custom_modules()
         self._modules: dict = dict()
+
+    def get_available_standard_modules(self) -> List[str]:
+        """
+        Look for standard modules
+        :return: list of standard modules found
+        """
+        try:
+            return importlib.import_module(f".", package=BASE_MODULE).__all__
+        except Exception as e:
+            logger.error(f"Error getting custom modules for {self._app_name}: {e}")
+            return [] 
 
     def _discover_custom_modules(self) -> List[str]:
         """

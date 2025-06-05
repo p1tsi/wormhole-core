@@ -11,7 +11,7 @@ from typing import List, Union, Tuple
 from flask_socketio import Namespace
 from enum import Enum
 
-from . import utils
+from .utils.utils import zip_folder
 
 from .hooking.connector_manager import ConnectorManager
 from .hooking.modules_manager import ModulesManager
@@ -20,7 +20,7 @@ AGENT_PROJECT_DIR = os.path.join(os.getcwd(), 'wormhole-agent')
 AGENT_DIR = os.path.join(os.getcwd(), 'agents')
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
@@ -80,20 +80,20 @@ class Core(object):
 
     def resume_target(self) -> bool:
         """
-        If the app/process is not resumed, resume it.
+        Resume the app. (Processes are already resumed because already running)
         """
         if not self._resumed:
             try:
                 logger.info("Resume target")
                 self._device.resume(self._target_pid)
                 self._resumed = True
-                return True
             except Exception as e:
                 logger.error(f"Error resuming tagret: {e}")
-                return False
+        
+        else:
+            logger.info("Target already resumed")
 
-        logger.info("Target already resumed")
-        return True
+        return self._resumed
 
     def _create_data_dir(self) -> str:
         """
@@ -117,7 +117,7 @@ class Core(object):
         logger.info("Session detached")
         zip_file = os.path.join(os.getcwd(), 'appData', f'{self._target_name}_{self._target_pid}.zip')
         logger.info(f"Zipping data inside {zip_file}")
-        utils.zip_folder(
+        zip_folder(
             self._data_dir,
             zip_file
         )
@@ -129,6 +129,14 @@ class Core(object):
         logger.info('Script destroyed')
         if self._ws:
             self._ws.emit('destroyed')
+
+    def standard_modules(self) -> List[str]:
+        """
+        Retrieve a list of standard hooking modules for currently analyzed application.
+        """
+        standard_modules = self._modules_manager.get_available_standard_modules()
+        logger.info(f"Getting custom hooking modules: {standard_modules}")
+        return standard_modules
 
     def custom_modules(self) -> List[str]:
         """
@@ -263,7 +271,7 @@ class Core(object):
 
         # Inject script and attach to the session
         try:
-            timeout = 180 if self._device.type == 'remote' else 60
+            timeout = 180 if self._device.type == 'remote' else 120
             self._session = self._device.attach(self._target_pid, persist_timeout=timeout)
         except frida.TransportError as e:
             logger.error(f'{e}')
@@ -343,13 +351,13 @@ class Core(object):
                     injected script inside app's process
         """
 
+        data, err = None, None
         logger.info(f"Call {method} {args}")
         if method == 'dumpipa':
-            return self._dump_ipa(method, args)
+            data, err = self._dump_ipa(method, args)
         else:
             try:
                 data = self._script.exports.invoke(method, args)
-                err = None
             except Exception as e:
                 logger.error(e)
                 data, err = None, str(e)
