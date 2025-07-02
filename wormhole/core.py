@@ -156,14 +156,14 @@ class Core(object):
         hooking_template_file_path = os.path.join(
             AGENT_PROJECT_DIR,
             'src',
-            self._os.value,
+            'common',
             'hooking',
             'hooking.template.ts'
         )
         final_hooking_file_path = os.path.join(
             AGENT_PROJECT_DIR,
             'src',
-            self._os.value,
+            'common',
             'hooking',
             'hooking.ts'
         )
@@ -197,8 +197,8 @@ class Core(object):
 
         # ...and then compile the agent
         logger.info("Compiling custom agent")
-        build_script = "build-ios" if self._os == TargetOs.IOS else "build-macos"
-        p = subprocess.Popen(["npm", "run", build_script, final_agent_script_path], cwd=AGENT_PROJECT_DIR)
+        src_script = os.path.join("src", f"{self._os.value}.ts")
+        p = subprocess.Popen(["frida-compile", "-S", "-c", src_script, "-o", final_agent_script_path], cwd=AGENT_PROJECT_DIR)
         p.communicate()
         try:
             p.wait(timeout=20)
