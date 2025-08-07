@@ -30,12 +30,12 @@ class File(BaseConnector):
 
     def __init__(self):
         super(File, self).__init__()
-        # self.file = open("/tmp/bo.txt", "a")
+        self.file = open("/tmp/bo.txt", "a")
 
     @BColors.set_color
     def forward(self, message, **kwargs):
-        with open("/tmp/bo.txt", "a") as file:
-            file.write(
-                f"{kwargs.get('timestamp')} [{kwargs.get('tid')}] {kwargs.get('module')}({kwargs.get('function')}): "
-                f"{message}\n"
-                + "-" * 60 + "\n")
+        #with open("/tmp/bo.txt", "a") as file:
+        self.file.write(
+            f"{kwargs.get('timestamp')} [{kwargs.get('tid')}] {kwargs.get('module')}({kwargs.get('function')}): "
+            f"{message}\n"
+            + "-" * 60 + "\n")

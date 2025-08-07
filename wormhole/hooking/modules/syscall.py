@@ -32,3 +32,7 @@ class Syscall(BaseModule):
                          f"-> {self.message.ret}")
         elif "execve" in self.message.symbol:
             self.publish(f"{self.message.symbol}({self.message.args[0]}) -> {self.message.ret}")
+        elif "setxattr" in self.message.symbol:
+            self.publish(f"{self.message.symbol}({self.message.args[0]}, {self.message.args[1]}, {self.message.args[2]})")
+        elif "getxattr" in self.message.symbol:
+            self.publish(f"{self.message.symbol}({self.message.args[0]}, {self.message.args[1]}) -> {self.message.args[2]}")

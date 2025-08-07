@@ -8,6 +8,7 @@ __all__ = [
     "keychain",
     "network",
     "notifications",
+    "spawn",
     "sqlite",
     "syscall",
     "userdefaults",

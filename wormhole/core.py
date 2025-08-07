@@ -176,7 +176,7 @@ class Core(object):
             out_hooking_file.append(line)
             if '//#IMPORT#//' in line:
                 for module in custom_modules:
-                    out_hooking_file.append("\nimport { %s_functions } from './modules/custom/%s/%s';\n" %
+                    out_hooking_file.append("\nimport { %s_functions } from './modules/custom/%s/%s.js';\n" %
                                             (module, app_name, module))
             if '//#FOREACH#//' in line:
                 out_hooking_file.append("\n\tcustomModules.forEach(module => {\n")

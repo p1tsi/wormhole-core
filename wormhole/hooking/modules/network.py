@@ -160,7 +160,7 @@ class Network(BaseModule):
         return count
 
     def _process(self):
-        print(self.message.symbol, self.message.args)
+        #print(self.message.symbol, self.message.args)
         request = self.requests.get(self.message.args[0], None)
         if "callback" in self.message.symbol:
             if request:
@@ -181,7 +181,7 @@ class Network(BaseModule):
         elif 'forHTTPHeaderField' in self.message.symbol:
             if request:
                 request.set_header(self.message.args[1], self.message.args[2])
-                self.publish(request)
+                #self.publish(request)
         else:
             if not request:
                 self.requests[self.message.args[0]] = self.init_request()
